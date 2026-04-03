@@ -1,0 +1,8 @@
+{
+  "entries": [
+    { "persistent_name": "Michelangelo", "universe": "Famous Artists", "role": "Lead", "created_at": "2026-04-03T16:51:00Z", "legacy_named": false, "status": "active" },
+    { "persistent_name": "Vermeer", "universe": "Famous Artists", "role": "Core Dev", "created_at": "2026-04-03T16:51:00Z", "legacy_named": false, "status": "active" },
+    { "persistent_name": "Escher", "universe": "Famous Artists", "role": "Tester/QA", "created_at": "2026-04-03T16:51:00Z", "legacy_named": false, "status": "active" },
+    { "persistent_name": "Hokusai", "universe": "Famous Artists", "role": "DevRel/Docs", "created_at": "2026-04-03T16:51:00Z", "legacy_named": false, "status": "active" }
+  ]
+}

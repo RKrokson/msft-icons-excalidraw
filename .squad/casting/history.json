@@ -1,0 +1,10 @@
+{
+  "assignments": [
+    {
+      "assignment_id": "init-2026-04-03",
+      "universe": "Famous Artists",
+      "created_at": "2026-04-03T16:51:00Z",
+      "agents": ["Michelangelo", "Vermeer", "Escher", "Hokusai"]
+    }
+  ]
+}
