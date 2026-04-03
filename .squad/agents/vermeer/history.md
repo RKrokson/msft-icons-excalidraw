@@ -42,3 +42,6 @@ All 7 fixes from Michelangelo and Escher's reviews applied to scripts/convert.mj
 5. **Path data length limit** — SVG path `d` attributes capped at 50KB (DoS defense)
 6. **Output path containment** — `resolve()` validates output dirs stay within repository root (path traversal defense)
 7. **Improved error logging** — Bare `catch {}` in path processing replaced with `console.warn` of error message (debuggability)
+
+### Security Hardening Verified (2026-04-03)
+**Escher verification:** All 7 fixes verified and approved. Tested against all 3 icon packs (720 icons total) with zero regressions. 31 library files generated cleanly. Exit code 0.

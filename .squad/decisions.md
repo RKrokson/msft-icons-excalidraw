@@ -210,6 +210,62 @@ Implemented 7 security fixes to harden the SVG-to-Excalidraw converter against p
 
 ---
 
+### Escher — Security Hardening Verification
+
+**Scope:** Verify Vermeer's 7 security fixes in scripts/convert.mjs  
+**Date:** 2025-01-30  
+**Verdict:** ✅ APPROVE
+
+#### Fix-by-Fix Verification
+
+##### 1. Pack Name Validation — ✅ VERIFIED
+- `isValidPackName()` at line 34 with regex `^[a-zA-Z0-9\s_\-().]+$` plus `.startsWith('.')` rejection
+- Called at line 644 in `discoverPacks()` before any further processing
+- Confirmed working: `.copilot`, `.git`, `.github`, `.gitignore`, `.gitattributes`, `.squad` all correctly skipped with warnings
+
+##### 2. Symlink Detection — ✅ VERIFIED
+- `lstatSync` imported at line 19; no remaining `statSync` calls anywhere in file
+- `walkSvgs()` line 618-622: `lstatSync()` + `.isSymbolicLink()` check with warning
+- `discoverPacks()` line 648-660: Three separate symlink checks — entry itself, the `Icons/` subdirectory, and each discovered file
+- All symlinks skipped with `[WARN]` log
+
+##### 3. File Size Limit — ✅ VERIFIED
+- `MAX_SVG_SIZE = 5 * 1024 * 1024` at line 29
+- Checked at line 716-721 via `lstatSync(filePath).size` before `readFileSync`
+- Oversized files skipped with warning including the file path
+
+##### 4. Recursion Depth Limit — ✅ VERIFIED
+- `MAX_RECURSION_DEPTH = 100` at line 31
+- `processElement(el, depth = 0)` at line 309 with `depth > MAX_RECURSION_DEPTH` guard at line 310
+- All three recursive call sites pass `depth + 1`: line 318 (svg/defs children), line 324 (g children)
+- Initial call at line 574 uses default `depth = 0`
+
+##### 5. Path Data Length Limit — ✅ VERIFIED
+- `MAX_PATH_DATA_LENGTH = 50000` at line 30
+- Check at line 510-513: `d.length > MAX_PATH_DATA_LENGTH` before parsing, with warning and `break`
+
+##### 6. Output Path Containment — ✅ VERIFIED
+- `resolve` imported from `node:path` at line 23
+- Lines 684-688: `absOutDir = resolve(outDir)`, `absRoot = resolve(".")`, `startsWith` containment check
+- Throws `Error` if output path escapes the repository root
+
+##### 7. Improved Error Logging — ✅ VERIFIED
+- Line 564-565: `catch (err)` with `console.warn(\`[WARN] Failed to parse path: ${err.message}\`)`
+- Previously a bare `catch {}` — now logs the error message for debugging
+
+#### Regression Check
+
+- **All 3 icon packs processed:** Azure (705), Entra (7), Power Platform (8) = 720 total
+- **31 library files generated** across all packs
+- **Exit code 0**, no errors
+- Pack name validation correctly filters dot-prefixed entries (`.git`, `.squad`, etc.) without affecting real packs
+
+#### Summary
+
+All 7 security hardening fixes are correctly implemented with no gaps. The script runs cleanly against all icon packs with zero regressions. The codebase is now hardened against symlink escapes, path traversal, and DoS vectors from malicious SVGs.
+
+---
+
 ## Merged from Inbox
 
 All decision documents from `.squad/decisions/inbox/` have been reviewed and merged above. Inbox files have been removed per Scribe protocol.
