@@ -266,6 +266,47 @@ All 7 security hardening fixes are correctly implemented with no gaps. The scrip
 
 ---
 
+## Source Directory Restructure (2025-07-24)
+
+**Author:** Vermeer (Core Dev)  
+**Date:** 2025-07-24  
+**Status:** Implemented
+
+### Summary
+
+Moved all source icon pack folders from the repo root into a `source/` directory and removed `libraries/` from `.gitignore` so generated libraries are committed for direct consumer use.
+
+### Changes
+
+#### 1. Source directory layout
+- Created `source/` at repo root
+- Moved via `git mv`:
+  - `Azure_Public_Service_Icons` → `source/Azure_Public_Service_Icons`
+  - `Microsoft Entra architecture icons - Oct 2023` → `source/Microsoft Entra architecture icons - Oct 2023`
+  - `Power-Platform-icons-scalable` → `source/Power-Platform-icons-scalable`
+
+#### 2. Script updates (`scripts/convert.mjs`)
+- Added `const SOURCE_DIR = "source"` at the top of the file
+- `discoverPacks()` now scans `SOURCE_DIR` instead of `"."`; all path construction uses `join(SOURCE_DIR, entry, ...)`
+- `processPack()` builds `iconsDir` as `join(SOURCE_DIR, packFolder, "Icons")`
+- Output still writes to `libraries/` at repo root (unchanged)
+- All security checks (pack name validation, symlink detection, output path containment) remain functional
+
+#### 3. `.gitignore` update
+- Removed `libraries/` entry so generated library files are committed
+
+### Rationale
+
+- Cleaner repo root: source assets are separated from tooling and output
+- End users can clone the repo and immediately use the Excalidraw libraries without running the build
+- `SOURCE_DIR` const makes it easy to reconfigure the source location
+
+### Verification
+
+- All 3 packs discovered, 722 icons converted, 31 library files generated, exit code 0
+
+---
+
 ## Merged from Inbox
 
 All decision documents from `.squad/decisions/inbox/` have been reviewed and merged above. Inbox files have been removed per Scribe protocol.

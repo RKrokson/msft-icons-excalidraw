@@ -45,3 +45,12 @@ All 7 fixes from Michelangelo and Escher's reviews applied to scripts/convert.mj
 
 ### Security Hardening Verified (2026-04-03)
 **Escher verification:** All 7 fixes verified and approved. Tested against all 3 icon packs (720 icons total) with zero regressions. 31 library files generated cleanly. Exit code 0.
+
+### Source Directory Restructure (2025-07-24)
+- **Moved icon packs** from repo root into `source/` directory (`source/Azure_Public_Service_Icons`, `source/Microsoft Entra architecture icons - Oct 2023`, `source/Power-Platform-icons-scalable`)
+- **Updated `discoverPacks()`** in `scripts/convert.mjs` to scan `SOURCE_DIR` (`"source"`) instead of `"."`. Added const `SOURCE_DIR` at top of file for easy configuration.
+- **Updated `processPack()`** to build `iconsDir` path as `join(SOURCE_DIR, packFolder, "Icons")`.
+- **Output unchanged**: libraries still written to `libraries/` at repo root.
+- **Removed `libraries/` from `.gitignore`**: generated libraries are now committed so users can consume them without running the build.
+- **Verified**: All 3 packs discovered, 722 icons converted across 31 libraries, exit code 0.
+- **Documentation updated by Hokusai**: README.md and .github/copilot-instructions.md reflect new source/ layout and pre-built library availability.

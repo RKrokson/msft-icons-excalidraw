@@ -22,3 +22,20 @@
 - **Contributing section:** Open invitation without being overly promotional
 
 **Key principle:** Balance visual appeal with substance—emoji and structure enhance understanding, not replace it.
+
+### 2025-07-24 — Source Restructure Documentation Update
+**What changed:** Updated README.md and .github/copilot-instructions.md to reflect new source/ directory layout and pre-built library strategy.
+
+**README.md updates:**
+- "Regeneration" section now references `source/` as the location for source icon directories
+- Updated path examples to show `libraries/<pack>/<category>.excalidrawlib` structure
+- Clarified that npm commands work from repo root with sources in source/ and output in libraries/
+- Emphasized that users can consume pre-built libraries without running the conversion script
+
+**copilot-instructions.md updates:**
+- Updated Architecture section to describe SOURCE_DIR = "source" constant in scripts/convert.mjs
+- Updated source icons path pattern: `source/<PackFolder>/Icons/<category>/*.svg`
+- Updated output path clarity: `libraries/<pack-slug>/<category>.excalidrawlib`
+- Updated regeneration instructions to reference new directory structure
+
+**Key outcome:** Documentation now clearly separates source assets (in source/) from generated libraries (in libraries/), making it obvious to new users that they can use the repo as-is without building.
