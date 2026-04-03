@@ -6,7 +6,7 @@ This repository converts official Microsoft icon packs (SVGs) into self-containe
 
 ## Architecture
 
-- **Source icons**: `<PackFolder>/Icons/<category>/*.svg` — any folder at the repo root containing an `Icons/` subdirectory is auto-discovered
+- **Source icons**: `source/<PackFolder>/Icons/<category>/*.svg` — any folder inside `source/` containing an `Icons/` subdirectory is auto-discovered
 - **Conversion script**: `scripts/convert.mjs` — Node.js script that parses SVGs with JSDOM, converts shapes (rect, circle, ellipse, polygon, path) to native Excalidraw vector elements, resolves gradient fills to solid colors, and outputs libraries
 - **Pack configuration**: `PACK_CONFIGS` in the script defines per-pack naming rules (strip regex, output filename, category priority). Unknown packs use a generic default.
 - **Output**: `libraries/<pack-slug>/<category>.excalidrawlib` — one library per category, using native Excalidraw vector elements

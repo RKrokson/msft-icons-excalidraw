@@ -18,6 +18,8 @@ This repository converts Microsoft's official SVG icon packs into Excalidraw-nat
 
 ### Using the Libraries
 
+The easiest way to use these icons is to **download the pre-built `.excalidrawlib` files** directly from the `libraries/` folder and import them into your Excalidraw diagrams. No setup required!
+
 Each category is packaged as a separate `.excalidrawlib` file in `libraries/<pack>/`. Import only what you need:
 
 **Excalidraw Web** ([excalidraw.com](https://excalidraw.com))  
@@ -37,9 +39,9 @@ libraries/power-platform-icons-scalable/powerPlat-icons.excalidrawlib
 
 ## 🔧 How It Works
 
-The conversion pipeline transforms SVG icons into native Excalidraw format:
+For developers contributing new icon packs, the conversion pipeline transforms SVG icons into native Excalidraw format:
 
-1. **Auto-discover** — Scans for any folder with an `Icons/` subdirectory
+1. **Auto-discover** — Scans `source/` for any folder with an `Icons/` subdirectory
 2. **Parse SVG** — Extracts shapes (rect, circle, ellipse, polygon, path) using JSDOM
 3. **Convert vectors** — Transforms SVG elements into Excalidraw's native vector format
 4. **Resolve gradients** — Converts gradients to solid colors (Excalidraw limitation)
@@ -55,19 +57,21 @@ The conversion pipeline transforms SVG icons into native Excalidraw format:
 
 ## 🔄 Regenerating Libraries
 
-If source icons are updated or you add new packs:
+**Most users don't need to do this.** The library files are pre-built and committed to the repository—just download them from the `libraries/` folder.
+
+Only regenerate libraries if you're **updating source icons** or **adding new packs**:
 
 ```bash
 npm install
 node scripts/convert.mjs
 ```
 
-The script auto-discovers any folder with an `Icons/` subdirectory and produces one `.excalidrawlib` per category under `libraries/<pack>/`.
+The script auto-discovers folders in `source/` with an `Icons/` subdirectory and produces one `.excalidrawlib` per category under `libraries/<pack>/`.
 
 ## ➕ Adding a New Icon Pack
 
 1. **Drop in the pack**  
-   Place the icon pack folder (must contain an `Icons/` subdirectory with SVGs) in the repo root
+   Place the icon pack folder (must contain an `Icons/` subdirectory with SVGs) inside the `source/` directory
 
 2. **Configure naming (if needed)**  
    If filenames use a non-standard convention, add an entry to `PACK_CONFIGS` in `scripts/convert.mjs`:
@@ -82,10 +86,11 @@ The script auto-discovers any folder with an `Icons/` subdirectory and produces 
 
 3. **Run conversion**  
    ```bash
+   npm install
    node scripts/convert.mjs
    ```
 
-The script will discover your pack automatically and generate libraries under `libraries/<pack-slug>/`.
+The script will discover your pack automatically in `source/` and generate libraries under `libraries/<pack-slug>/`. Commit the generated libraries to the repository.
 
 ## 📄 License
 

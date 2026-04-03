@@ -25,6 +25,7 @@ import { randomUUID } from "crypto";
 import { JSDOM } from "jsdom";
 import SvgPath from "svgpath";
 
+const SOURCE_DIR = "source"; // directory containing icon pack folders
 const TARGET_SIZE = 64; // rendered icon size in Excalidraw
 const MAX_SVG_SIZE = 5 * 1024 * 1024; // 5MB — reject oversized SVGs to prevent DoS
 const MAX_PATH_DATA_LENGTH = 50000; // 50KB — reject overly complex path data
@@ -639,19 +640,24 @@ function extractCategory(filePath) {
 }
 
 function discoverPacks() {
+  if (!existsSync(SOURCE_DIR)) {
+    console.error(`Source directory "${SOURCE_DIR}" not found.`);
+    return [];
+  }
   const packs = [];
-  for (const entry of readdirSync(".")) {
+  for (const entry of readdirSync(SOURCE_DIR)) {
     if (!isValidPackName(entry)) {
       console.warn(`[WARN] Skipping invalid pack name: ${entry}`);
       continue;
     }
-    const entryStat = lstatSync(entry);
+    const entryPath = join(SOURCE_DIR, entry);
+    const entryStat = lstatSync(entryPath);
     if (entryStat.isSymbolicLink()) {
-      console.warn(`[WARN] Skipping symlink: ${entry}`);
+      console.warn(`[WARN] Skipping symlink: ${entryPath}`);
       continue;
     }
     if (!entryStat.isDirectory()) continue;
-    const iconsDir = join(entry, "Icons");
+    const iconsDir = join(entryPath, "Icons");
     if (existsSync(iconsDir)) {
       const iconsStat = lstatSync(iconsDir);
       if (iconsStat.isSymbolicLink()) {
@@ -689,7 +695,7 @@ function processPack(packFolder) {
   if (!existsSync("libraries")) mkdirSync("libraries");
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
-  const iconsDir = join(packFolder, "Icons");
+  const iconsDir = join(SOURCE_DIR, packFolder, "Icons");
   const allSvgs = walkSvgs(iconsDir).sort();
   console.log(`\n[${packFolder}] Found ${allSvgs.length} SVG files`);
 
