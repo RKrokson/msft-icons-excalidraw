@@ -156,6 +156,60 @@ Comprehensive audit of Node.js SVG parsing and conversion pipeline. Overall secu
 
 ---
 
+### Vermeer — Security Hardening Implementation
+
+**Scope:** Security fixes in scripts/convert.mjs  
+**Date:** 2025-01-30  
+**Status:** Completed
+
+#### Summary
+
+Implemented 7 security fixes to harden the SVG-to-Excalidraw converter against path traversal, file system escape, and denial-of-service vectors identified by Michelangelo and Escher audits.
+
+#### Changes Implemented
+
+1. **Pack Name Validation** (Medium — Path Traversal)
+   - Added `isValidPackName()` with regex `^[a-zA-Z0-9\s_\-().]+$` and dot-prefix rejection
+   - Applied in `discoverPacks()` before processing any pack folder
+   - Prevents crafted directory names like `../../malicious/Icons/` from escaping the repo
+
+2. **Symlink Detection** (Moderate — File System Escape)
+   - Replaced all `statSync()` calls with `lstatSync()` from `node:fs`
+   - Added `.isSymbolicLink()` checks in both `walkSvgs()` and `discoverPacks()`
+   - Symlinks are skipped with a warning, preventing reads outside the repository
+
+3. **File Size Limit** (Moderate — DoS Protection)
+   - Added `MAX_SVG_SIZE = 5 * 1024 * 1024` (5MB) constant
+   - SVG file size checked via `lstatSync().size` before `readFileSync()`
+   - Oversized files skipped with a warning
+
+4. **Recursion Depth Limit** (Moderate — DoS Protection)
+   - Added `depth` parameter to `processElement()` (default 0)
+   - Capped at `MAX_RECURSION_DEPTH = 100` — prevents stack overflow from deeply nested SVG `<g>` elements
+   - All recursive calls pass `depth + 1`
+
+5. **Path Data Length Limit** (Moderate — DoS Protection)
+   - Added `MAX_PATH_DATA_LENGTH = 50000` (50KB) constant
+   - Path `d` attribute length checked before parsing
+   - Overly complex paths skipped with a warning
+
+6. **Output Path Containment** (Medium — Path Traversal)
+   - Added `resolve()` import from `node:path`
+   - Output directory validated against repo root via `absOutDir.startsWith(absRoot)`
+   - Throws if output path would escape the repository
+
+7. **Improved Error Logging**
+   - Replaced bare `catch {}` in path processing with `catch (err) { console.warn(...) }`
+   - Malformed path errors are now logged for debugging
+
+#### Verification
+
+- ✅ All 3 icon packs (Azure, Entra, Power Platform) processed successfully
+- ✅ 720 total icons converted
+- ✅ No regressions detected
+
+---
+
 ## Merged from Inbox
 
-All decision documents from `.squad/decisions/inbox/` have been reviewed and summarized above. Inbox files have been removed per Scribe protocol.
+All decision documents from `.squad/decisions/inbox/` have been reviewed and merged above. Inbox files have been removed per Scribe protocol.

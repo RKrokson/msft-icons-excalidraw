@@ -31,5 +31,14 @@
 
 ### Implementation Status
 - Security findings merged to .squad/decisions.md (HIGH/MEDIUM/LOW priority)
-- Awaiting Vermeer assessment for code hardening timeline
 - Current threat level: LOW for trusted Microsoft icon packs; MODERATE for untrusted sources
+
+### Security Hardening Implemented (2025-01-30)
+All 7 fixes from Michelangelo and Escher's reviews applied to scripts/convert.mjs:
+1. **Pack name validation** — `isValidPackName()` rejects names with `..`, `/`, `\`, or starting with `.` (path traversal defense)
+2. **Symlink detection** — Replaced `statSync` with `lstatSync` in `walkSvgs()` and `discoverPacks()`; symlinks skipped with warning (file system escape defense)
+3. **File size limit** — 5MB cap on SVG files before `readFileSync` (DoS defense)
+4. **Recursion depth limit** — `processElement()` capped at 100 levels deep (stack overflow defense)
+5. **Path data length limit** — SVG path `d` attributes capped at 50KB (DoS defense)
+6. **Output path containment** — `resolve()` validates output dirs stay within repository root (path traversal defense)
+7. **Improved error logging** — Bare `catch {}` in path processing replaced with `console.warn` of error message (debuggability)
