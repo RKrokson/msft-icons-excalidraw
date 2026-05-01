@@ -532,35 +532,81 @@ function svgToElements(svgContent) {
           const sorted = [...transformed].sort((a, b) => b.area - a.area);
           const outer = sorted[0];
 
+          // Classify inner subpaths as holes (bbox contained in outer) or siblings
+          // (separate, non-overlapping shapes like individual letter glyphs).
+          // Holes are identified by their bbox overlapping > 50% of their area
+          // with the outer subpath's bbox — same heuristic as before, but instead
+          // of patching with #ffffff we merge outer + holes into a single element
+          // so Canvas 2D's nonzero fill rule creates a genuinely transparent hole.
+          const holeSubpaths = [];
+          const siblingSubpaths = [];
           for (const sp of transformed) {
-            const pts = sp.pts;
-            if (pts.length < 2) continue;
-
-            // For compound paths, detect cutout holes by checking if a
-            // subpath's bounding box significantly overlaps with the outer shape.
-            // Non-overlapping subpaths are separate shapes (keep original fill).
-            let spFill = fill;
-            if (transformed.length > 1 && sp !== outer) {
-              const overlapX = Math.max(0, Math.min(sp.maxX, outer.maxX) - Math.max(sp.minX, outer.minX));
-              const overlapY = Math.max(0, Math.min(sp.maxY, outer.maxY) - Math.max(sp.minY, outer.minY));
-              const overlapArea = overlapX * overlapY;
-              if (sp.area > 0 && overlapArea > sp.area * 0.5) {
-                spFill = "#ffffff";
-              }
+            if (sp === outer) continue;
+            const overlapX = Math.max(0, Math.min(sp.maxX, outer.maxX) - Math.max(sp.minX, outer.minX));
+            const overlapY = Math.max(0, Math.min(sp.maxY, outer.maxY) - Math.max(sp.minY, outer.minY));
+            if (sp.area > 0 && overlapX * overlapY > sp.area * 0.5) {
+              holeSubpaths.push(sp);
+            } else {
+              siblingSubpaths.push(sp);
             }
+          }
 
-            const ox = pts[0][0], oy = pts[0][1];
-            const relPts = pts.map(([x, y]) => [x - ox, y - oy]);
+          if (holeSubpaths.length > 0) {
+            // Compound path with holes: concatenate outer + hole point arrays into
+            // one Excalidraw line element. Canvas 2D's nonzero fill rule then
+            // naturally produces transparent holes where the outer (CCW) and inner
+            // (CW) subpath windings cancel — no #ffffff patch required.
+            // The connecting segment between the end of the outer and the start of
+            // the first hole is a thin "bridge"; at ≤64 px icon sizes it is
+            // visually negligible compared to the previous solid-white blob.
+            const mergedPts = [...outer.pts, ...holeSubpaths.flatMap((h) => h.pts)];
+            const allXs = mergedPts.map((p) => p[0]);
+            const allYs = mergedPts.map((p) => p[1]);
+            const ox = mergedPts[0][0], oy = mergedPts[0][1];
             elements.push(makeBaseElement({
               type: "line",
               x: ox, y: oy,
-              width: sp.maxX - sp.minX,
-              height: sp.maxY - sp.minY,
-              points: relPts,
-              backgroundColor: spFill,
+              width: Math.max(...allXs) - Math.min(...allXs),
+              height: Math.max(...allYs) - Math.min(...allYs),
+              points: mergedPts.map(([x, y]) => [x - ox, y - oy]),
+              backgroundColor: fill,
               strokeColor: stroke,
               opacity,
             }));
+            // Sibling subpaths (non-overlapping separate glyphs, e.g. L and S in SQL
+            // icons) are emitted as individual elements as before.
+            for (const sp of siblingSubpaths) {
+              if (sp.pts.length < 2) continue;
+              const sox = sp.pts[0][0], soy = sp.pts[0][1];
+              elements.push(makeBaseElement({
+                type: "line",
+                x: sox, y: soy,
+                width: sp.maxX - sp.minX,
+                height: sp.maxY - sp.minY,
+                points: sp.pts.map(([x, y]) => [x - sox, y - soy]),
+                backgroundColor: fill,
+                strokeColor: stroke,
+                opacity,
+              }));
+            }
+          } else {
+            // No holes detected: emit each subpath as a separate element (original
+            // behaviour for non-compound paths like Oracle's stacked cylinder tiers).
+            for (const sp of transformed) {
+              const pts = sp.pts;
+              if (pts.length < 2) continue;
+              const ox = pts[0][0], oy = pts[0][1];
+              elements.push(makeBaseElement({
+                type: "line",
+                x: ox, y: oy,
+                width: sp.maxX - sp.minX,
+                height: sp.maxY - sp.minY,
+                points: pts.map(([x, y]) => [x - ox, y - oy]),
+                backgroundColor: fill,
+                strokeColor: stroke,
+                opacity,
+              }));
+            }
           }
         } catch (err) {
           console.warn(`[WARN] Failed to parse path: ${err.message}`);
