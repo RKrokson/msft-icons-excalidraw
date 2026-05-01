@@ -54,3 +54,17 @@ All 7 fixes from Michelangelo and Escher's reviews applied to scripts/convert.mj
 - **Removed `libraries/` from `.gitignore`**: generated libraries are now committed so users can consume them without running the build.
 - **Verified**: All 3 packs discovered, 722 icons converted across 31 libraries, exit code 0.
 - **Documentation updated by Hokusai**: README.md and .github/copilot-instructions.md reflect new source/ layout and pre-built library availability.
+
+### SQL Icon Q-Center Rendering Bug Discovered (2026-05-01)
+
+**Escher validation report:** 7 SQL icons render Q letter center as solid white (#ffffff) instead of transparent hole.
+
+**Affected icons:** SQL Database, SQL Server, SQL Managed Instance, Azure SQL, Azure SQL VM, Azure SQL Edge, SQL Server Registries — all in databases.excalidrawlib.
+
+**Root cause:** convert.mjs lines 543–549 split compound SVG paths into separate Excalidraw elements and patch inner subpaths (holes) with `spFill = "#ffffff"`. White is only correct on white canvas; fails on colored backgrounds (blue cylinder, cloud, rectangle behind each Q).
+
+**SVG design:** Q letter is single `<path>` with 4 subpaths (L, S, Q outer, Q inner hole). SVG nonzero fill rule makes hole transparent. Conversion breaks this: Q outer becomes gray disk, Q inner becomes white circle on top, blocking blue background.
+
+**Decision:** Option A recommended — concatenate all subpaths into ONE Excalidraw `line` element preserving CCW/CW winding. HTML5 Canvas nonzero fill rule naturally creates transparent holes. No `#ffffff` hack needed. Oracle Database has same mechanism but holes are intentional design.
+
+**Next:** Vermeer to implement Option A fix in convert.mjs (merge subpath points into single flat array after collection, remove per-subpath `#ffffff` override). Regenerate databases.excalidrawlib. Escher to re-validate.

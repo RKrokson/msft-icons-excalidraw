@@ -307,6 +307,88 @@ Moved all source icon pack folders from the repo root into a `source/` directory
 
 ---
 
+---
+
+## SQL Icon Q-Center Rendering Bug (2025-07-14)
+
+**Filed by:** Escher  
+**Date:** 2025-07-14  
+**Priority:** Medium — Visual correctness defect affecting 7+ icons
+
+### Problem
+
+SQL text icons (SQL Database, SQL Server, SQL Managed Instance, Azure SQL, Azure SQL VM, Azure SQL Edge, SQL Server Registries) render the Q letter incorrectly in Excalidraw:
+
+- **Expected:** Q center is transparent, showing the blue background (cylinder/cloud/rectangle) below
+- **Actual:** Q center is white — a white `#ffffff` circle covers the center
+
+The converter splits compound SVG paths into separate Excalidraw `line` elements and marks inner subpaths (holes) with `spFill = "#ffffff"` (convert.mjs line 548). White is only correct on a white canvas; it fails on any colored background.
+
+### Root Cause
+
+The Q letter in SQL icons is one `<path>` element with 4 subpaths:
+- L letter (7pts) — separate glyph, CCW
+- S letter (156pts) — separate glyph, CCW
+- Q outer (93 or 85pts) — solid disk, CCW (sweep=0 arcs)
+- Q inner hole (66pts) — inner circle, CW (sweep=1 arcs)
+
+The SVG's nonzero fill rule makes the Q inner transparent (winding sum = 0). After conversion, Q outer becomes a solid gray disk; Q inner becomes a white circle on top. The white circle blocks the blue background from showing through.
+
+### Decision Needed
+
+**Choose one rendering strategy for compound paths with holes:**
+
+#### Option A — Single concatenated element (recommended)
+Merge all subpath points into ONE Excalidraw `line` element, preserving CCW/CW winding. The HTML5 Canvas 2D nonzero fill rule naturally creates transparent holes.
+- ✅ Correct visual output for all compound path icons
+- ✅ No `#ffffff` hack needed
+- ✅ Oracle, gear shapes, and all other compound paths also benefit
+- ⚠️ Holes show canvas background, not underlying Excalidraw elements (Excalidraw limitation)
+
+#### Option B — Background-color sampling
+Keep current split approach; when a hole is detected, sample the fill color of the nearest underlying element at the hole's position and use that as the hole fill.
+- ✅ Correct for simple flat-color backgrounds
+- ❌ Fails on gradients, multi-element backgrounds, partial overlaps
+- ❌ Complex to implement; fragile
+
+#### Option C — Accept limitation, keep `#ffffff`
+Document that holes are always rendered white; acceptable on white-canvas use cases only.
+- ❌ Known visual defect on colored-background icons
+- ❌ Breaks 7 SQL icons and potentially others
+
+### Recommendation
+
+**Option A.** Modify the subpath loop in `processElement()` (convert.mjs lines 531–568):
+1. After collecting all `transformed` subpaths, concatenate their points into a single flat array
+2. Use the outer fill for the single merged element
+3. Remove the per-subpath `#ffffff` override
+
+This requires keeping the existing `pathToSubpaths()` (winding is already correct) and changing only the output assembly.
+
+### Affected Icons
+
+| Icon | File | Background Behind Q |
+|------|------|-------------------|
+| SQL Database | 10130-icon-service-SQL-Database.svg | Blue cylinder (#0078d4) |
+| SQL Server | 10132-icon-service-SQL-Server.svg | Blue cylinder (#0078d4) |
+| SQL Managed Instance | 10136-icon-service-SQL-Managed-Instance.svg | Blue cylinder (#0078d4) |
+| Azure SQL | 02390-icon-service-Azure-SQL.svg | Blue cloud (#5ea0ef) |
+| Azure SQL VM | 10124-icon-service-Azure-SQL-VM.svg | Blue rectangle (#5ea0ef) |
+| Azure SQL Edge | 02750-icon-service-Azure-SQL-Edge.svg | Blue cylinder (#0078d4) |
+| SQL Server Registries | 10351-icon-service-SQL-Server-Registries.svg | Blue cylinder (#0078d4) |
+
+Oracle Database has the same mechanism but its white holes are intentional design highlights.
+
+### Concrete Repro
+
+1. Open Excalidraw (excalidraw.com)
+2. Import `libraries/azure-public-service-icons/databases.excalidrawlib`
+3. Place any SQL Database or Azure SQL icon on a blue background
+4. Observe: center of Q is white (not transparent/blue)
+5. Compare to original SVG: center of Q is transparent, shows background through
+
+---
+
 ## Merged from Inbox
 
 All decision documents from `.squad/decisions/inbox/` have been reviewed and merged above. Inbox files have been removed per Scribe protocol.
