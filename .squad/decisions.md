@@ -389,6 +389,76 @@ Oracle Database has the same mechanism but its white holes are intentional desig
 
 ---
 
+## Compound Path Holes — Merge-Subpaths Approach
+
+**Author:** Vermeer  
+**Date:** 2026-05-01  
+**Status:** Implemented  
+**Affects:** `scripts/convert.mjs`, all generated `.excalidrawlib` files
+
+### The Decision
+
+Compound SVG `<path>` elements whose inner subpaths are **spatially contained** within the outer subpath (bbox overlap > 50% of inner area) are now rendered as a **single Excalidraw `line` element** whose `points` array concatenates the outer subpath points followed by the hole subpath points.
+
+Previously, holes were patched by emitting a separate `line` element with `backgroundColor: "#ffffff"`. That patch is removed.
+
+Sibling subpaths that are NOT contained in the outer (e.g., separate letter glyphs at different positions) continue to be emitted as individual elements — unchanged behaviour.
+
+### The Discriminator
+
+**Hole:** inner subpath whose bounding-box overlap with the outer (largest) subpath exceeds 50% of the inner's own bounding-box area.
+
+```
+overlapX = max(0, min(inner.maxX, outer.maxX) - max(inner.minX, outer.minX))
+overlapY = max(0, min(inner.maxY, outer.maxY) - max(inner.minY, outer.minY))
+isHole   = inner.area > 0  &&  overlapX * overlapY > inner.area * 0.5
+```
+
+This is the same heuristic as before — only the action taken on detected holes changed.
+
+**Why NOT `fill-rule="evenodd"`:** The affected SQL icons carry no `fill-rule` attribute (SVG default = nonzero). Using `fill-rule` presence as a discriminator would miss these icons entirely.
+
+**Why NOT winding-direction detection:** Computing the signed area (shoelace formula) per subpath would be more precise, but the bbox overlap heuristic already works correctly for all observed cases. Adding winding detection is complexity without a demonstrated need.
+
+### Oracle Database — Clarification
+
+Escher's bug report described Oracle's white highlights as "intentional design." SVG inspection disproves this: Oracle's compound path uses `fill="url(#red-gradient)"` throughout with NO white fills. The white highlights were also an artifact of the `#ffffff` patch being applied to Oracle's tiny highlight-strip subpaths.
+
+After this fix, Oracle's cylinder renders with the correct red gradient color on all elements. This is an improvement, not a regression.
+
+Oracle's subpaths (stacked cylinder tiers at different Y positions) have zero Y-overlap with each other, so they are NOT classified as holes and are emitted as separate elements — same as before.
+
+### Why This Approach Over Alternatives
+
+| Approach | Result |
+|---|---|
+| **A — Merge subpaths (chosen)** | Canvas nonzero fill rule creates real transparent holes. Simple implementation. ✅ |
+| B — Background-colour sampling | Fragile, fails on gradients/multi-element backgrounds. ❌ |
+| C — Keep `#ffffff` | Known visual defect on coloured backgrounds. ❌ |
+| D — `fill-rule` attribute check | Misses the SQL icons (no attribute set). ❌ |
+| E — Winding detection | More precise but unnecessary; heuristic already works. Overkill. |
+
+### Known Limitation
+
+Concatenating subpath point arrays without `moveTo` semantics creates a thin connecting segment from the outer ring's end to the inner hole's start. Under Canvas 2D nonzero fill rule this produces a thin transparent "bridge nick" at icon sizes (≤64 px) that is visually negligible. A complete fix would require Excalidraw to support `moveTo`-capable path elements or a `freedraw`-style SVG path format.
+
+### Affected Lines in `scripts/convert.mjs`
+
+The compound-path loop was previously lines 531–563. After this fix, the same block spans approximately lines 531–605. Key structural change:
+
+- `holeSubpaths` / `siblingSubpaths` classification replaces direct per-subpath loop
+- `if (holeSubpaths.length > 0)` branch: merges and emits 1 + N sibling elements
+- `else` branch: original per-subpath behaviour (no holes detected)
+
+### Validation
+
+- All 7 affected SQL icons: zero `#ffffff` in output; Q ring is one merged element (~151–159 pts)
+- Oracle Database: zero `#ffffff`; all elements carry correct red gradient colour
+- Cosmos DB, Cache Redis, SQL Elastic Pools, and others: no regression
+- `node scripts/convert.mjs` → exit 0, 722 icons, 31 libraries
+
+---
+
 ## Merged from Inbox
 
 All decision documents from `.squad/decisions/inbox/` have been reviewed and merged above. Inbox files have been removed per Scribe protocol.

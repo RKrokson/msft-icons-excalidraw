@@ -52,3 +52,54 @@ Independently verified all 7 of Vermeer's security fixes in scripts/convert.mjs:
 - ✅ Regression test passed: 720 icons across 3 packs, 31 libraries generated, exit code 0
 - ✅ Pack name validation correctly filters dot-prefixed entries (.git, .squad, etc.) without false positives on real packs
 - Verdict: APPROVE — no gaps or issues found
+
+### SQL Q-Hole Bug Investigation — 2025-07-14
+
+Investigated visual defect reported by Ryan: SQL icons show a white circle in the center of the Q letter instead of showing the blue background behind it (as the original SVG intends).
+
+**Inventory Check:**
+- 26 source SVGs in `databases/`, 26 library items in `databases.excalidrawlib` — EXACT MATCH, no gaps
+
+**Root Cause (convert.mjs line 548: `spFill = "#ffffff"`):**
+- The converter's compound-path hole detector (lines 543–549) correctly identifies inner subpaths (by bbox containment > 50%) and marks them as "holes"
+- It sets those holes to `#ffffff` (white) as a proxy for transparency
+- **The Q letter in all SQL text icons is a single compound `<path>` with 4 subpaths:** L (7pts), S (156pts), Q outer (93 or 85pts), Q inner hole (66pts)
+- Q outer uses CCW arcs (sweep=0) → solid filled disk after extraction
+- Q inner uses CW arcs (sweep=1) → separate white circle placed on top of the disk
+- **White is correct only on a white canvas.** On icons with blue backgrounds (SQL Database's cylinder, Azure SQL's cloud, Azure SQL VM's rectangle), the center of Q shows white instead of blue.
+
+**All 7 affected icons (SQL letter text visible):**
+SQL Database (10130), SQL Server (10132), SQL Managed Instance (10136), Azure SQL (02390), Azure SQL VM (10124), Azure SQL Edge (02750), SQL Server Registries (10351)
+
+**Spot-check findings:**
+- Azure Cosmos DB, Cache Redis: no compound path holes, no issue ✓
+- Azure Data Explorer Clusters: intentional `#fff` highlight elements (not artifacts) ✓
+- Oracle Database: has `#ffffff` holes via same mechanism, but Oracle's small indicator ovals are intentionally white (they're visual highlights on the red cylinders) — correct behavior ✓
+- SSIS Lift And Shift IR: one `#ffffff` element detected; SSIS has no SQL text, compound path structure is a gear/arrow, the white element may be an overlay highlight ✓
+- Managed Database: one `#fff` hole detected; no SQL text, likely intentional white inner highlight ✓
+
+**Recommended Fix (Vermeer):**
+Concatenate ALL subpath points of a compound path into a SINGLE Excalidraw `line` element instead of splitting them. The HTML5 Canvas 2D context uses nonzero fill rule by default. With outer subpath (CCW) points concatenated with inner subpath (CW) points, the canvas renders a natural ring with a transparent hole. This matches the original SVG compound path rendering. No `#ffffff` override needed.
+
+**Key Technical Facts:**
+- Excalidraw `line` elements support arbitrary polygons; points are relative offsets from `[x, y]`
+- `pathToSubpaths()` already correctly preserves winding direction via arc sampling
+- Concatenating subpaths into one element preserves the CCW/CW winding that creates holes
+- Excalidraw holes show canvas background (not underlying elements) — adequate for most icons
+- Oracle-type icons remain correct with this approach (white canvas = white highlights ✓)
+- `85 vs 93 pts` for Q outer across different icon files: different decimal precision in source SVG causes slightly different arc sampling; structurally identical
+
+**Files implicated:**
+- `scripts/convert.mjs` lines 531–568 (compound path splitting and hole detection)
+- All 7 SQL text icon library entries in `databases.excalidrawlib`
+
+### Compound Path Fix — Oracle Database Clarification — 2026-05-01
+
+**Vermeer's Analysis:**
+Escher's earlier report described Oracle's white highlights as "intentional design highlights." Upon SVG inspection, Vermeer determined the white circles were actually artifacts of the `#ffffff` patch being applied to Oracle's tiny stacked-cylinder subpaths — not explicit design elements. Oracle's source uses `fill="url(#red-gradient)"` throughout.
+
+**Outcome:**
+After Vermeer's merged-subpath fix, Oracle Database now renders with correct red gradient on all elements. The removal of the `#ffffff` patch is an improvement, not a regression.
+
+**Action Required:**
+Escher: Re-validate Oracle Database icon output to confirm the white highlights are indeed gone and the red gradient is correct. Consider this a follow-up verification during next library regeneration cycle.
