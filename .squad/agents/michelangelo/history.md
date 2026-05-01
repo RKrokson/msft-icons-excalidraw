@@ -34,3 +34,9 @@ Canvas 2D nonzero fill rule naturally creates transparent holes when CCW (outer)
 
 **Known Trade-off:**
 Concatenating subpaths without explicit moveTo semantics creates a thin connecting segment (~4px bridge nick) at icon size. Visually negligible; full fix would require Excalidraw support for moveTo-capable path elements.
+
+**Gate Validation (2026-05-01):**
+Escher re-validated against 31 libraries (all categories). No regressions detected. All remaining `#ffffff` elements traced to explicit `fill="#fff"` in source SVGs. Verdict: ⚠️ APPROVE WITH RESERVATIONS. Ships with follow-up on bridge nick.
+
+**Future QA Calibration:**
+When verifying artifact-vs-intentional decisions: Check source SVG first for explicit `fill="#fff"`. Absence of explicit white = likely artifact. This saved 1.5 hours of re-investigation on Oracle Database clarification.

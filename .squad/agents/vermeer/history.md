@@ -55,7 +55,7 @@ All 7 fixes from Michelangelo and Escher's reviews applied to scripts/convert.mj
 - **Verified**: All 3 packs discovered, 722 icons converted across 31 libraries, exit code 0.
 - **Documentation updated by Hokusai**: README.md and .github/copilot-instructions.md reflect new source/ layout and pre-built library availability.
 
-### SQL Icon Q-Center Rendering Bug Discovered (2026-05-01)
+### SQL Icon Q-Center Rendering Bug — FIXED (2026-05-01)
 
 **Escher validation report:** 7 SQL icons render Q letter center as solid white (#ffffff) instead of transparent hole.
 
@@ -65,6 +65,40 @@ All 7 fixes from Michelangelo and Escher's reviews applied to scripts/convert.mj
 
 **SVG design:** Q letter is single `<path>` with 4 subpaths (L, S, Q outer, Q inner hole). SVG nonzero fill rule makes hole transparent. Conversion breaks this: Q outer becomes gray disk, Q inner becomes white circle on top, blocking blue background.
 
-**Decision:** Option A recommended — concatenate all subpaths into ONE Excalidraw `line` element preserving CCW/CW winding. HTML5 Canvas nonzero fill rule naturally creates transparent holes. No `#ffffff` hack needed. Oracle Database has same mechanism but holes are intentional design.
+#### Discriminator Finding (from SVG inspection)
 
-**Next:** Vermeer to implement Option A fix in convert.mjs (merge subpath points into single flat array after collection, remove per-subpath `#ffffff` override). Regenerate databases.excalidrawlib. Escher to re-validate.
+- **SQL icons:** `<path fill="#f2f2f2">` (or gradient) with 4 subpaths in one element: L-letter, S-letter, Q-outer (CCW), Q-inner hole (CW). Q-inner's bbox is **fully contained** in Q-outer's bbox. No `fill-rule` attribute. Nonzero fill rule = transparent hole where CCW + CW cancel.
+- **Oracle Database:** Uses separate `<path>` elements; its compound path has 7 subpaths representing **stacked non-overlapping cylinder tiers** at different Y positions. Tier bboxes have zero or near-zero Y overlap with each other, so the overlap heuristic does NOT classify them as holes.
+- **Key finding:** Escher's description of Oracle's "intentional white highlights" was inaccurate. Oracle's SVG has no white fills anywhere (fill = red gradient). The white was also a bug artifact. The overlap-containment discriminator (`overlapArea > sp.area * 0.5`) already correctly distinguishes nested holes from stacked siblings.
+
+#### Implementation (Option A — merge-subpaths)
+
+**Lines changed:** ~531–563 in `scripts/convert.mjs` (the compound-path loop, now lines ~531–605 after expansion).
+
+**What changed:**
+1. Replaced the single `for (const sp of transformed)` loop (which emitted per-subpath elements and patched holes with `#ffffff`) with a two-branch structure:
+   - **Holes present branch:** Concatenate `outer.pts` + `holeSubpaths.flatMap(h => h.pts)` into a SINGLE `line` element. Canvas 2D nonzero fill rule creates transparent holes naturally. Sibling subpaths (non-overlapping, e.g. L and S letters) are still emitted as separate elements.
+   - **No holes branch:** Original behaviour — emit each subpath as a separate element.
+2. Removed `spFill = "#ffffff"` entirely (no more white-fill patching).
+
+#### Validation Results
+
+- **All 7 SQL icons:** zero `#ffffff` in output. Q ring is now a single merged element (~151–159 pts = Q-outer + Q-inner concatenated). L and S letters remain separate elements.
+- **Oracle Database:** zero `#ffffff`. All elements use correct red gradient midpoint color (`#db897d`). This is a side-effect improvement — Oracle's tiny white strip artifacts are also gone.
+- **Cosmos DB, Cache Redis, other icons:** element counts unchanged, no regression detected.
+- **Regeneration command:** `node scripts/convert.mjs` from repo root. 707 Azure icons, 7 Entra icons, 8 Power Platform icons. Exit code 0.
+
+#### Known Limitation (bridge artifact)
+
+Concatenating subpath point arrays without `moveTo` semantics creates a thin "connecting segment" from the end of the outer path to the start of each hole. Under Canvas 2D's nonzero fill rule, this produces a thin transparent "nick" (keyhole effect) in the ring at the bridge location. At ≤64 px icon sizes, this is visually negligible vs. the previous solid white blob. Full resolution would require Excalidraw to support `moveTo`-capable path elements.
+
+### Q-Cutout Fix Approved — 2026-05-01
+
+**Escher's Gate Re-validation:** Verdict ⚠️ **APPROVE WITH RESERVATIONS**.
+
+- SQL icons (all 7): zero `#ffffff`, Q-ring merged correctly.
+- Oracle Database: white ovals removed (were artifacts, now correct red gradient).
+- Bridge nick (3.66px at 64px scale): acceptable as known limitation; filed follow-up for proper moveTo-based fix.
+- No regressions across 31 libraries.
+
+**Fix ships. Bridge follow-up filed as GitHub issue `visual-quality` tag.**

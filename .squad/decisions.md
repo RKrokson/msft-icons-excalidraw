@@ -1,3 +1,114 @@
+## Session: 2026-05-01
+
+### Escher — Q-Cutout Fix Re-validation
+
+# Reviewer Verdict: SQL Q-Cutout Fix
+
+**Reviewer:** Escher (Tester/QA)  
+**Fix author:** Vermeer  
+**Date:** 2025-07-14  
+**Verdict: ⚠️ APPROVE WITH RESERVATIONS**
+
+---
+
+## What Was Verified
+
+### 1. SQL Icons (Primary Fix) — ✅ PASS
+
+All 7 SQL text icons inspected in the regenerated `databases.excalidrawlib`:
+
+| Icon | Elements | White (#fff) | Max pts (Q) |
+|------|----------|-------------|-------------|
+| SQL Database | 7 | 0 | 159 |
+| SQL Server | 8 | 0 | 159 |
+| SQL Managed Instance | 9 | 0 | 159 |
+| Azure SQL | 4 | 0 | 156 |
+| Azure SQL VM | 5 | 0 | 159 |
+| Azure SQL Edge | 13 | 0 | 156 |
+| SQL Server Registries | 13 | 1* | 156 |
+
+*SQL Server Registries has exactly 1 white element (pts=64, w=24.6, h=30) — this is the **intentional white document/file background** explicitly declared `fill="#fff"` in the source SVG. It is NOT a Q-hole artifact. The Q itself is correctly zero-white.
+
+**Vermeer's claim verified:** The Q is now a single merged `line` element. No `#ffffff` fills in any SQL glyph element. Point counts of 156–159 match expectations (outer ~90–93 pts + inner ~66 pts).
+
+**Geometry assessment:** The merged Q will render with a transparent center through which the blue background is visible, matching the original SVG intent. The L and S letter glyphs are correctly emitted as separate sibling elements with the same fill color.
+
+---
+
+### 2. Oracle Database — ✅ VERMEER WAS RIGHT; MY ORIGINAL REPORT WAS WRONG
+
+**My original report (2025-07-14) said:** Oracle's white center ovals were "intentionally white highlights — correct behavior."
+
+**Finding on re-inspection:** The Oracle Database source SVG (`03490-icon-service-Oracle-Database.svg`) contains **no white fills anywhere**. All cylinder body paths use the red gradient (`#c74634`→`#db897d`→`#c74634`). There is no `fill="#fff"` or `fill="white"` in the file.
+
+**Conclusion:** The `#ffffff` elements in the old Oracle library entries were artifacts of the converter's `spFill = "#ffffff"` hole patch — identical mechanism to the SQL Q bug. They happened to look plausible on a white canvas (white ovals atop red cylinders can look like cylinder-top highlights), which led me to misidentify them as intentional.
+
+The new Oracle output shows 7 elements — all `#db897d` or `#32bedd` — with no white. This is the correct rendering.
+
+**Vermeer's claim verified and my earlier finding retracted.** The white ovals were artifacts.
+
+---
+
+### 3. Bridge Nick — ⚠️ ACCEPTABLE, FILE FOLLOW-UP
+
+Measured the bridge in the SQL Database Q element (the cleanest reference case):
+
+- Q element: bg=`#eee`, 159 pts, 14.58 × 18.45 px (in 64px library space)
+- Last outer point [92]: `[0, 0]`  
+- First inner point [93]: `[-3.56, -0.89]`
+- **Bridge distance: 3.66 px**
+
+The bridge is ~25% of the letter width — it creates a thin filled stripe across one part of the Q ring at the point where the outer subpath array ends and the inner subpath array begins. At standard usage sizes:
+
+| Render size | Bridge apparent width | Assessment |
+|-------------|----------------------|------------|
+| 32 px | ~1.8 px | Below perceptual threshold |
+| 64 px | ~3.7 px | Thin seam, visible under scrutiny |
+| 128 px | ~7.3 px | Visible as a nick in the Q ring |
+
+**vs. the old white blob:** The previous bug filled the entire Q center (~66 pts, full circle) with white. The bridge nick is a single thin stroke at one point on the ring. This is a dramatic improvement.
+
+**Recommendation:** ACCEPT the bridge nick as a known limitation. File a follow-up issue asking Vermeer (or another contributor) to investigate whether Excalidraw's `line` type supports a `moveTo`-equivalent separator between point groups, or whether the subpaths should be emitted as separate `line` elements with explicit `fill="transparent"` on the inner one (noting that this re-introduces background-color coupling).
+
+---
+
+### 4. Regression Sweep — ✅ NO NEW REGRESSIONS
+
+All 31 libraries were regenerated. Swept white elements in: `databases`, `compute`, `networking`, `identity`, `storage`.
+
+All white (`#ffffff`/`#fff`) elements found in the regenerated output were traced back to **explicit `fill="#fff"` declarations in their source SVGs** — not to the old `spFill = "#ffffff"` hole detection. Examples confirmed:
+- `Azure Database PostgreSQL Server Group` — source SVG has `fill: #fff` ✅
+- `Data Factories` — source SVG has `fill: #fff` ✅
+- `SQL Server Registries` — source SVG has `fill: #fff` (document background) ✅
+
+**Key mechanical guarantee:** Vermeer's new code path never writes `#ffffff` — it removed the only `spFill = "#ffffff"` assignment. Any `#ffffff` remaining in output can only come from explicit source SVG fills. This eliminates the entire class of "white hole artifact" from the converter.
+
+The hole detection heuristic (bbox overlap > 50%) is unchanged, so no previously-correct icons are at risk of being misclassified. The merging change is additive in correctness.
+
+---
+
+## Verdict
+
+**⚠️ APPROVE WITH RESERVATIONS**
+
+The primary SQL Q-cutout fix is correct, clean, and ships. No regressions detected. Oracle is now rendering correctly. 
+
+One minor issue is acceptable as-is with a follow-up:
+- **Bridge nick (~3.66 px at 64px scale):** File a GitHub issue tagged `visual-quality` asking for a proper fix when capacity allows. Not a blocker.
+
+### Required follow-up before next major release:
+
+> **Issue: Q-ring bridge nick** — The merged Q compound path has a ~3.66px "bridge" segment where the outer and inner subpath arrays connect. At 128px+ usage sizes this is mildly visible. Investigate `moveTo`-equivalent separator support or an alternative rendering strategy.
+
+---
+
+## Reviewer Lockout Note
+
+Per Reviewer Rejection Lockout protocol: if this were a REJECT, Vermeer would be locked out of the revision. Not applicable — verdict is APPROVE WITH RESERVATIONS.
+
+
+---
+
 # Decisions
 
 Team decisions are recorded here by Scribe.

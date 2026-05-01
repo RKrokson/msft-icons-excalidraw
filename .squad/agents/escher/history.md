@@ -93,6 +93,44 @@ Concatenate ALL subpath points of a compound path into a SINGLE Excalidraw `line
 - `scripts/convert.mjs` lines 531–568 (compound path splitting and hole detection)
 - All 7 SQL text icon library entries in `databases.excalidrawlib`
 
+### Q-Fix Gating Re-Validation — 2025-07-14
+
+Performed reviewer gate on Vermeer's fix for the SQL Q-cutout bug.
+
+**Verdict: ⚠️ APPROVE WITH RESERVATIONS**
+
+**SQL fix confirmed (all 7 icons):**
+- All 7 SQL icons now have 0 `#ffffff` elements in SQL glyph elements
+- Q is a single merged `line` element with 156–159 pts (outer ~90–93 + inner ~66)
+- SQL Server Registries retains 1 intentional white element (explicit `fill="#fff"` document background in source SVG — not a Q artifact)
+
+**Oracle Database — prior report retracted:**
+- My 2025-07-14 report said Oracle's white ovals were "intentional highlights." THIS WAS WRONG.
+- The Oracle source SVG (`03490-icon-service-Oracle-Database.svg`) has no `fill="#fff"` anywhere.
+- The white ovals in the old library were the same `spFill = "#ffffff"` artifact as the SQL Q bug.
+- They looked plausible because white ovals on red cylinders can appear to be cylinder-top highlights.
+- **Lesson: Always verify intentional-vs-artifact by checking the source SVG for an explicit white fill before concluding white is intentional.**
+- Vermeer was correct. The new Oracle output (all `#db897d`) is the correct rendering.
+
+**Bridge nick assessment:**
+- SQL Database Q: outer last point [0,0] → inner first point [-3.56, -0.89] = **3.66px bridge**
+- Bridge is ~25% of the Q letter width (letter = 14.58px in 64px space)
+- Visible as a thin seam under scrutiny at 64px; more visible at 128px+
+- Dramatically better than the old solid white blob filling the entire Q center
+- **Assessment: Acceptable at icon tile sizes; file follow-up issue for proper moveTo-based fix**
+- Filed follow-up in verdict: `.squad/decisions/inbox/escher-q-fix-verdict.md`
+
+**Regression sweep:**
+- All 31 libraries regenerated; swept `databases`, `compute`, `networking`, `identity`, `storage`
+- Every `#ffffff` element in regenerated output traced to explicit `fill="#fff"` in source SVG
+- Mechanical guarantee: Vermeer's new code never writes `#ffffff` — the only `spFill = "#ffffff"` line was removed. Any white in output is intentional source white.
+- No new regressions.
+
+**New icons/patterns to watch in future:**
+- Icons where white ovals appear INSIDE colored shapes: always open the source SVG and check for explicit `fill="#fff"` before calling them intentional. If there is no explicit white, they're artifacts.
+- Icons with document/file shapes (SQL Server Registries, Data Factories, etc.): these legitimately carry `fill="#fff"` for their document backgrounds — expected and correct.
+- PostgreSQL Server Group: has 5 white elements including a 650-pt one. Source SVG confirms explicit `fill: #fff`. Pre-existing, not an artifact of the hole detection fix.
+
 ### Compound Path Fix — Oracle Database Clarification — 2026-05-01
 
 **Vermeer's Analysis:**
@@ -101,5 +139,8 @@ Escher's earlier report described Oracle's white highlights as "intentional desi
 **Outcome:**
 After Vermeer's merged-subpath fix, Oracle Database now renders with correct red gradient on all elements. The removal of the `#ffffff` patch is an improvement, not a regression.
 
-**Action Required:**
-Escher: Re-validate Oracle Database icon output to confirm the white highlights are indeed gone and the red gradient is correct. Consider this a follow-up verification during next library regeneration cycle.
+**Gate Validation (2026-05-01):**
+Escher re-validated Oracle Database output. White highlights confirmed gone. Red gradient rendering correct. Fix validated and approved for ship.
+
+**Calibration Note:**
+When investigating visual artifacts in future: always open the source SVG and check for explicit white fills before calling them intentional. If no explicit `fill="#fff"` exists, treat white elements as likely converter artifacts.
