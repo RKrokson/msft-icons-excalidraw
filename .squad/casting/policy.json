@@ -1,5 +1,0 @@
-{
-  "allowed_universes": ["Famous Artists"],
-  "max_capacity": 20,
-  "overflow_strategy": "diegetic_expansion"
-}
