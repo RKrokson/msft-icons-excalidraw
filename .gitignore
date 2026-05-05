@@ -26,10 +26,14 @@ desktop.ini
 .env.local
 .env.*.local
 
-# Squad: ignore runtime state (logs, inbox, sessions)
-.squad/orchestration-log/
-.squad/log/
-.squad/decisions/inbox/
-.squad/sessions/
+# Dev tooling — kept local, never committed to public repo.
+# This separates AI/coordination tooling (Copilot config, GitHub Actions for the
+# Squad team, Squad team state, dev-only merge rules) from the public icon-conversion
+# repo. Files remain on disk and continue to function locally.
+.copilot/
+.github/
+.squad/
+.gitattributes
+
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
